@@ -1,0 +1,50 @@
+.red,
+.required {
+  color: #f00;
+}
+
+/*-- Text Check --*/
+
+table.text-check {
+  width: 100%;
+}
+.order-image {
+  width: 50px;
+}
+table.text-check td {
+  padding: 0 15px 0 0;
+}
+
+table.text-check td .cuztom-input {
+  width: 100%;
+}
+
+/*-- Hours --*/
+
+.hours .form-table tr > th {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.hours .form-table .time-selection select[disabled] {
+  opacity: 0.5;
+}
+
+.hours .form-table .time-selection select.hour,
+.hours .form-table .time-selection select.minute,
+.hours .form-table .time-selection select.meridiem {
+  width: 50px;
+  min-width: 0px;
+  margin: 0px 3px;
+}
+
+.hours .form-table .time-selection select.hour {
+  margin-left: 0px;
+}
+
+.hours .form-table .time-selection select.meridiem {
+  width: 60px;
+}
+.editor-post-taxonomies__hierarchical-terms-list {
+  max-height: 32rem;
+}

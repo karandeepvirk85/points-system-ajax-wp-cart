@@ -1,0 +1,192 @@
+<?php
+if ( !class_exists( 'PLD_Ajax' ) ) {
+
+    class PLD_Ajax extends PLD_Library {
+
+        function __construct() {
+            add_action( 'wp_ajax_pld_post_ajax_action', array($this, 'likeDisLikeAction'));
+            add_action( 'wp_ajax_nopriv_pld_post_ajax_action', array($this, 'likeDisLikeAction'));
+        }
+
+        function likeDisLikeAction() {
+            
+            // Set empty return
+            $arrReturn = array(
+                'success' => false,
+                'latest_count' => 0,
+                'user_message' => ''
+            );
+
+            // Set default date to ASIA Kolkata
+            date_default_timezone_set('Asia/Kolkata');
+
+            // Check if trigger action is like and post id is posted
+            if(isset($_GET['post_id']) AND isset($_GET['trigger_type'])){
+
+                // Get Post ID
+                $intPostId                  = (int) $_GET['post_id'];
+                // Get User Trigger Action
+                $strTriggerAction           = (string) $_GET['trigger_type'];
+                // Get Post Total Like Count
+                $intLikeCount               = (int) get_post_meta($intPostId, 'pld_like_count', true);
+
+                $intMaxVotesAllowed         = 10;
+                /*CHeck if User is not Loged In The set message and success false*/
+                if(!is_user_logged_in()){
+                     $arrReturn = array(
+                        'success' => false,
+                        'latest_count' => $intLikeCount,
+                        'user_message' => 'Only members are allowed to vote.'
+                    );
+                }else{
+                        $intDateTime = strtotime(
+                            date('d F Y')
+                        );
+
+                        $intUserId = get_current_user_id();
+                        // Check If User Can Vote
+                        $arrFunctionReturn = self::canUserVote($intPostId, $intUserId, $intDateTime);
+                        if($arrFunctionReturn['count']>=$intMaxVotesAllowed){
+                            $arrReturn['success'] = false;
+                            $arrReturn['latest_count'] = $intLikeCount;
+                            $arrReturn['user_message'] = 'Sorry! You have already placed '.$intMaxVotesAllowed.' votes on <strong>'.$arrFunctionReturn['post_title'].'</strong>. You can only place '.$intMaxVotesAllowed.' votes on each post everyday.';
+                        }else{
+                            self::deleteOldVotes($intPostId, $intUserId, $intDateTime);
+                            self::addUserVote($intPostId, $intUserId, $intDateTime);
+                            // If empty post like count set it to zero
+                            if(empty($intLikeCount)){
+                                $intLikeCount = 0;
+                                add_post_meta($intPostId, 'pld_like_count', $intLikeCount); 
+                            }
+
+                            $intLikeCount = $intLikeCount + 1;
+                            $check = update_post_meta($intPostId, 'pld_like_count', $intLikeCount);
+                            if($check){
+                                $arrReturn['success'] = true;
+                                $arrReturn['latest_count'] = $intLikeCount;
+                                $arrReturn['user_message'] = 'Vote is successfully placed';
+                            }else{
+                                $arrReturn['success'] = false;
+                                $arrReturn['latest_count'] = $intLikeCount;
+                                $arrReturn['user_message'] = 'Updated Failed';
+                            }
+                        }                    
+                    }
+                }
+                echo json_encode($arrReturn);
+                die();
+            }
+
+            /**
+             * Delete Old Posts
+             */
+            public static function deleteOldVotes($intPostId, $intUserId, $intDateTime){
+                $args = array(
+                    'post_type' => 'user_vote',
+                    'posts_per_page' => -1,
+                    'numberposts' => -1,
+                    'post_status' => 'publish',
+                    'meta_query' => array(
+                        'relation' => 'AND',
+                        array(
+                            'key' => '_meta_information_user_id',
+                            'value' => (int)$intUserId,
+                            'compare' => '='                            
+                        ),
+                        array(
+                            'key' => '_meta_information_post_id',
+                            'value' => (int)$intPostId,
+                            'compare' => '='                            
+                        ),
+                        array(
+                            'key' => '_meta_information_user_date',
+                            'value' => (int)$intDateTime,
+                            'compare' => '!='                            
+                        ),
+                    ),
+                );
+
+                $arrPosts = get_posts($args);
+
+                // Remove All Posts of this user if Date is other than todays date
+                if(!empty($arrPosts)){
+                    foreach($arrPosts as $key => $objPost){
+                        wp_trash_post($objPost->ID);
+                    }
+                }
+            }
+
+            /**
+             * Add User Vote
+             */
+            public static function addUserVote($intPostId, $intUserId, $intDateTime){
+                $objUser = get_userdata($intUserId);
+                $strUserName = $objUser->user_nicename;
+                $strUserEmail = $objUser->user_email;
+                $args = array(
+                    'post_type' => 'user_vote',
+                    'posts_per_page' => -1,
+                    'numberposts' => -1,
+                    'post_status' => 'publish'
+                );
+                $intVoteId = wp_insert_post($args);
+                if($intVoteId>0){
+                    update_post_meta($intVoteId,'_meta_information_post_id', (int) $intPostId);
+                    update_post_meta($intVoteId,'_meta_information_user_id', (int) $intUserId);
+                    update_post_meta($intVoteId,'_meta_information_user_date', (int) $intDateTime);
+                    update_post_meta($intVoteId,'_meta_information_user_name', (string) $strUserName);
+                    update_post_meta($intVoteId,'_meta_information_user_email', (string) $strUserEmail);
+                    $args = array(
+                        'ID' => $intVoteId,
+                        'post_title' => '# '.$intVoteId
+                    );
+                    wp_update_post($args);
+                }
+            } 
+            
+            /**
+             * Can User Vote
+             */
+            public static function canUserVote($intPostId, $intUserId, $intDateTime){
+   
+                $arrReturn = array(
+                    'post_title' => '',
+                    'count' => '',
+                );
+
+                $args = array(
+                    'post_type' => 'user_vote',
+                    'posts_per_page' => -1,
+                    'numberposts' => -1,
+                    'post_status' => 'publish',
+                    'meta_query' => array(
+                        'relation' => 'AND',
+                        array(
+                            'key' => '_meta_information_user_id',
+                            'value' => (int)$intUserId,
+                            'compare' => '='                            
+                        ),
+                        array(
+                            'key' => '_meta_information_post_id',
+                            'value' => (int)$intPostId,
+                            'compare' => '='                            
+                        ),
+                        array(
+                            'key' => '_meta_information_user_date',
+                            'value' => (int)$intDateTime,
+                            'compare' => '='                            
+                        ),
+                    ),
+                );
+                $arrPosts = get_posts($args);
+                
+                $arrReturn = array(
+                    'post_title' => get_the_title($intPostId),
+                    'count' => (int) count($arrPosts)
+                );
+
+                return $arrReturn;
+            } 
+        }
+    new PLD_Ajax();
+}
