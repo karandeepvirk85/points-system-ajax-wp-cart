@@ -39,7 +39,10 @@ $strCategoryLinks = Theme_Controller::getCategoriesLink($arrCategories);
                 <a class="hide-button animate__fadeInUp animate__animated" href="<?php echo home_url()?>/cart">View Cart <i class="fa fa-cart-plus" aria-hidden="true"></i></a>
             </div>
             <div class="product-short-description">
-                <?php echo Products_Controller::getShortDescription($post->ID); ?>
+                <?php 
+                    $strShortDescription = Products_Controller::getShortDescription($post->ID); 
+                    echo substr($strShortDescription,0,300);
+                ?>
             </div>
         </div>
     </div>

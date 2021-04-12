@@ -11,10 +11,10 @@
         <h2><?php echo $post->post_title;?></h2>
     </div>
     <div class="point-container">
-        <p><strong>Points:</strong> <?php echo Products_Controller::getPoints($post->ID)?></p>
+        <p><span>Points:</span> <strong><?php echo Products_Controller::getPoints($post->ID)?></strong></p>
     </div>
     <div class="point-container">
-        <p><strong>Available:</strong> <?php echo Products_Controller::getAvailableProducts($post->ID)?></p>
+        <p><span>Available:</span> <strong><?php echo Products_Controller::getAvailableProducts($post->ID)?></strong></p>
     </div>
     <div class="button-container">
         <button>Reedem</button>
